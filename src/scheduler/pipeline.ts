@@ -180,7 +180,14 @@ export async function runPipeline(config?: Config): Promise<void> {
   const allSucceeded = stages.every((s) => s.status === "success" || s.status === "pending");
   const anySucceeded = stages.some((s) => s.status === "success");
 
-  const finalStatus = allSucceeded ? "success" : anySucceeded ? "partial" : "failed";
+  let finalStatus: "success" | "partial" | "failed";
+  if (allSucceeded) {
+    finalStatus = "success";
+  } else if (anySucceeded) {
+    finalStatus = "partial";
+  } else {
+    finalStatus = "failed";
+  }
   updatePipelineRun(db, runId, { status: finalStatus, stages });
 
   logger.info(`Pipeline ${runId} completed: ${finalStatus}`);

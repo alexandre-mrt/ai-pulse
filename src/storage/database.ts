@@ -4,11 +4,20 @@ import { createLogger } from "../utils/logger.ts";
 const logger = createLogger("database");
 
 let db: Database | null = null;
+let currentDbPath: string | null = null;
 
 export function getDatabase(dbPath: string): Database {
-  if (db) return db;
+  if (db) {
+    if (currentDbPath && currentDbPath !== dbPath) {
+      throw new Error(
+        `Database singleton already open at "${currentDbPath}", cannot open at "${dbPath}"`,
+      );
+    }
+    return db;
+  }
 
   logger.info(`Opening database at ${dbPath}`);
+  currentDbPath = dbPath;
   db = new Database(dbPath, { create: true });
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA foreign_keys = ON");
@@ -73,6 +82,7 @@ export function closeDatabase(): void {
   if (db) {
     db.close();
     db = null;
+    currentDbPath = null;
     logger.info("Database closed");
   }
 }

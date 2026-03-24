@@ -70,11 +70,11 @@ function buildOAuthHeader(config: Config, method: string, url: string): string {
     config.twitter.accessTokenSecret,
   );
 
-  oauthParams.oauth_signature = signature;
+  const signedParams: Record<string, string> = { ...oauthParams, oauth_signature: signature };
 
-  const headerParts = Object.keys(oauthParams)
+  const headerParts = Object.keys(signedParams)
     .sort()
-    .map((key) => `${percentEncode(key)}="${percentEncode(oauthParams[key] ?? "")}"`)
+    .map((key) => `${percentEncode(key)}="${percentEncode(signedParams[key] ?? "")}"`)
     .join(", ");
 
   return `OAuth ${headerParts}`;

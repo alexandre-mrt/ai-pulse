@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import type { Config } from "../../config/index.ts";
 import type { YouTubeScript } from "../../types/index.ts";
 import { createLogger, withRetry } from "../../utils/index.ts";
@@ -75,7 +74,7 @@ export async function uploadVideo(
 
   const accessToken = await getAccessToken(config);
   const metadata = buildVideoMetadata(script);
-  const videoData = readFileSync(videoPath);
+  const videoData = Buffer.from(await Bun.file(videoPath).arrayBuffer());
 
   const boundary = `boundary_${Date.now()}`;
   const metadataJson = JSON.stringify(metadata);

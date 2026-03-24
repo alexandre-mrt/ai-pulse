@@ -14,13 +14,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "latest",
-    "@elevenlabs/elevenlabs-js": "latest",
-    "fast-xml-parser": "latest"
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@elevenlabs/elevenlabs-js": "^2.40.0",
+    "fast-xml-parser": "^5.5.9"
   },
   "devDependencies": {
-    "@biomejs/biome": "latest",
-    "@types/bun": "latest"
+    "@biomejs/biome": "^2.4.8",
+    "@types/bun": "^1.3.11"
   },
   "peerDependencies": {
     "typescript": "^5"

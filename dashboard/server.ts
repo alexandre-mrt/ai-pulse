@@ -12,7 +12,17 @@ import type {
 import index from "./index.html";
 
 const DASHBOARD_PORT = Number(process.env["DASHBOARD_PORT"] ?? 3001);
+const DASHBOARD_SECRET = process.env["DASHBOARD_SECRET"] ?? "";
 const PIPELINE_SCRIPT = "../src/scheduler/pipeline.ts";
+
+let lastTriggerTime = 0;
+const TRIGGER_COOLDOWN_MS = 300_000;
+
+function isAuthorized(req: Request): boolean {
+  if (!DASHBOARD_SECRET) return true;
+  const authHeader = req.headers.get("Authorization");
+  return authHeader === `Bearer ${DASHBOARD_SECRET}`;
+}
 
 function mapPipelineRun(row: PipelineRunRow): PipelineRunDto {
   const stages = JSON.parse(row.stages || "[]") as readonly StageResult[];
@@ -128,24 +138,39 @@ Bun.serve({
     },
 
     "/api/trigger": {
-      POST(): Response {
+      POST(req: Request): Response {
+        if (!isAuthorized(req)) {
+          return jsonResponse<TriggerResponse>(
+            { success: false, error: "Unauthorized" },
+            401,
+          );
+        }
+
+        const now = Date.now();
+        if (now - lastTriggerTime < TRIGGER_COOLDOWN_MS) {
+          const waitSec = Math.ceil((TRIGGER_COOLDOWN_MS - (now - lastTriggerTime)) / 1000);
+          return jsonResponse<TriggerResponse>(
+            { success: false, error: `Rate limited. Try again in ${waitSec}s` },
+            429,
+          );
+        }
+
         try {
+          lastTriggerTime = now;
           Bun.spawn(["bun", "run", PIPELINE_SCRIPT], {
             cwd: "..",
             stdout: "ignore",
             stderr: "ignore",
           });
-          const response: ApiResponse<TriggerResponse> = {
+          return jsonResponse<TriggerResponse>({
             success: true,
             data: { triggered: true, message: "Pipeline triggered successfully" },
-          };
-          return jsonResponse(response);
+          });
         } catch (err) {
-          const response: ApiResponse<TriggerResponse> = {
+          return jsonResponse<TriggerResponse>({
             success: false,
             error: err instanceof Error ? err.message : "Failed to trigger pipeline",
-          };
-          return jsonResponse(response, 500);
+          }, 500);
         }
       },
     },

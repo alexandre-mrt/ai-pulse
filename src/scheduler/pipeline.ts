@@ -5,12 +5,7 @@ import { publishNewsletter, publishThread, publishYouTubeVideo } from "../publis
 import { createAggregator } from "../sources/index.ts";
 import { getDatabase } from "../storage/database.ts";
 import { createPipelineRun, savePublication, updatePipelineRun } from "../storage/publications.ts";
-import type {
-  GeneratedContent,
-  PipelineStage,
-  PublicationRecord,
-  StageResult,
-} from "../types/index.ts";
+import type { GeneratedContent, PipelineStage, StageResult } from "../types/index.ts";
 import { createLogger } from "../utils/index.ts";
 
 const logger = createLogger("pipeline");
@@ -112,65 +107,74 @@ export async function runPipeline(config?: Config): Promise<void> {
 
   const content: GeneratedContent = generationResult.result;
 
-  await Promise.allSettled([
-    (async () => {
-      const r = await runStage(stages, "publishing_newsletter", () =>
-        publishNewsletter(cfg, content.newsletter),
-      );
-      stages = r.stages;
-      if (r.result) {
-        const pub: PublicationRecord = {
-          id: `pub_nl_${runId}`,
-          pipelineRunId: runId,
-          channel: "newsletter",
-          publishedAt: new Date(),
-          externalId: r.result.id,
-          externalUrl: r.result.url,
-          status: "published",
-          metadata: {},
-        };
-        savePublication(db, pub);
-      }
-    })(),
-    (async () => {
-      const r = await runStage(stages, "publishing_twitter", () =>
-        publishThread(cfg, content.twitter),
-      );
-      stages = r.stages;
-      if (r.result) {
-        const pub: PublicationRecord = {
-          id: `pub_tw_${runId}`,
-          pipelineRunId: runId,
-          channel: "twitter",
-          publishedAt: new Date(),
-          externalId: r.result.tweetIds[0] ?? null,
-          externalUrl: r.result.firstTweetUrl,
-          status: "published",
-          metadata: { tweetCount: r.result.tweetIds.length },
-        };
-        savePublication(db, pub);
-      }
-    })(),
-    (async () => {
-      const r = await runStage(stages, "publishing_youtube", () =>
-        publishYouTubeVideo(cfg, content.youtube),
-      );
-      stages = r.stages;
-      if (r.result) {
-        const pub: PublicationRecord = {
-          id: `pub_yt_${runId}`,
-          pipelineRunId: runId,
-          channel: "youtube",
-          publishedAt: new Date(),
-          externalId: r.result.videoId,
-          externalUrl: r.result.url,
-          status: "published",
-          metadata: { duration: r.result.duration },
-        };
-        savePublication(db, pub);
-      }
-    })(),
+  const [nlResult, twResult, ytResult] = await Promise.allSettled([
+    runStage(stages, "publishing_newsletter", () => publishNewsletter(cfg, content.newsletter)),
+    runStage(stages, "publishing_twitter", () => publishThread(cfg, content.twitter)),
+    runStage(stages, "publishing_youtube", () => publishYouTubeVideo(cfg, content.youtube)),
   ]);
+
+  const mergeStageResult = (
+    base: readonly StageResult[],
+    result: PromiseSettledResult<{
+      readonly result: unknown;
+      readonly stages: readonly StageResult[];
+    }>,
+    stageName: PipelineStage,
+  ): readonly StageResult[] => {
+    if (result.status === "fulfilled") {
+      const updated = result.value.stages.find((s) => s.stage === stageName);
+      if (updated) return base.map((s) => (s.stage === stageName ? updated : s));
+    }
+    return base.map((s) =>
+      s.stage === stageName
+        ? { ...s, status: "failed" as const, completedAt: new Date(), error: "Promise rejected" }
+        : s,
+    );
+  };
+
+  stages = mergeStageResult(stages, nlResult, "publishing_newsletter");
+  stages = mergeStageResult(stages, twResult, "publishing_twitter");
+  stages = mergeStageResult(stages, ytResult, "publishing_youtube");
+
+  if (nlResult.status === "fulfilled" && nlResult.value.result) {
+    const r = nlResult.value.result;
+    savePublication(db, {
+      id: `pub_nl_${runId}`,
+      pipelineRunId: runId,
+      channel: "newsletter",
+      publishedAt: new Date(),
+      externalId: r.id,
+      externalUrl: r.url,
+      status: "published",
+      metadata: {},
+    });
+  }
+  if (twResult.status === "fulfilled" && twResult.value.result) {
+    const r = twResult.value.result;
+    savePublication(db, {
+      id: `pub_tw_${runId}`,
+      pipelineRunId: runId,
+      channel: "twitter",
+      publishedAt: new Date(),
+      externalId: r.tweetIds[0] ?? null,
+      externalUrl: r.firstTweetUrl,
+      status: "published",
+      metadata: { tweetCount: r.tweetIds.length },
+    });
+  }
+  if (ytResult.status === "fulfilled" && ytResult.value.result) {
+    const r = ytResult.value.result;
+    savePublication(db, {
+      id: `pub_yt_${runId}`,
+      pipelineRunId: runId,
+      channel: "youtube",
+      publishedAt: new Date(),
+      externalId: r.videoId,
+      externalUrl: r.url,
+      status: "published",
+      metadata: { duration: r.duration },
+    });
+  }
 
   const allSucceeded = stages.every((s) => s.status === "success" || s.status === "pending");
   const anySucceeded = stages.some((s) => s.status === "success");

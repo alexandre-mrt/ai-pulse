@@ -1,0 +1,28 @@
+{
+  "name": "ai-pulse",
+  "version": "1.0.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "pipeline": "bun run src/scheduler/pipeline.ts",
+    "dev": "bun --hot src/index.ts",
+    "dashboard": "cd dashboard && bun run dev",
+    "lint": "bunx biome check --write .",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "@elevenlabs/elevenlabs-js": "latest",
+    "fast-xml-parser": "latest"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "latest",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

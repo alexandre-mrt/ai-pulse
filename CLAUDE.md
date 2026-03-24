@@ -1,111 +1,60 @@
----
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
-alwaysApply: false
----
+# AI Pulse
 
-Default to using Bun instead of Node.js.
+Automated AI/tech content pipeline. Aggregates news daily, generates content via Claude API, publishes to newsletter (Beehiiv), Twitter/X, and YouTube (faceless TTS videos).
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+## Stack
+- Runtime: Bun (use bun for everything, not node/npm)
+- Language: TypeScript (strict)
+- AI: Claude API (@anthropic-ai/sdk)
+- TTS: ElevenLabs (@elevenlabs/elevenlabs-js)
+- Video: FFmpeg
+- Storage: SQLite (bun:sqlite)
+- Dashboard: Bun.serve() with HTML imports + React
+- Linter: Biome
+- XML parsing: fast-xml-parser
 
-## APIs
+## Structure
+```
+src/
+  sources/     — 6 news aggregators (HN, Reddit, TechCrunch, ArXiv, PH, RSS)
+  engine/      — Claude API content generation (newsletter, twitter, youtube)
+  publishers/  — Beehiiv REST, Twitter OAuth 1.0a, YouTube pipeline
+  scheduler/   — Cron-based daily pipeline
+  storage/     — SQLite repositories (articles, publications)
+  types/       — Shared TypeScript types
+  config/      — Environment-based configuration
+  utils/       — Logger, HTTP with rate limiting, retry with backoff
+dashboard/     — Monitoring UI (Bun.serve + React)
+tests/         — Unit tests (bun test)
+```
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+## Commands
+```bash
+bun install          # Install deps
+bun run start        # Run pipeline once
+bun run pipeline     # Run pipeline directly
+bun run dev          # Dev mode with hot reload
+bun run dashboard    # Start dashboard
+bun run lint         # Biome lint + format
+bun test             # Run tests
+bun run typecheck    # TypeScript check
+```
+
+## Setup
+1. `cp .env.example .env` and fill API keys
+2. `bun install`
+3. `bun run start`
+
+## Bun specifics
+- Bun auto-loads .env — no dotenv needed
+- Use `bun:sqlite` not better-sqlite3
+- Use `Bun.serve()` not express
+- Use `Bun.file` over node:fs readFile/writeFile
+- Use `Bun.$\`cmd\`` over execa
+- Dashboard uses HTML imports with Bun.serve()
 
 ## Testing
-
-Use `bun test` to run tests.
-
-```ts#index.test.ts
+```ts
 import { test, expect } from "bun:test";
-
-test("hello world", () => {
-  expect(1).toBe(1);
-});
+test("example", () => { expect(1).toBe(1); });
 ```
-
-## Frontend
-
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
-
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.

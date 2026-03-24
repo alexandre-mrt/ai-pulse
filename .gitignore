@@ -32,3 +32,14 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# AI Pulse data
+data/
+
+# Long Run state files
+LONG_RUN_*.md
+NIGHT_SHIFT_*.md
+
+# Dashboard
+dashboard/.next/
+dashboard/node_modules/

@@ -79,10 +79,7 @@ export function savePublication(db: Database, record: PublicationRecord): void {
   logger.info(`Saved publication: ${record.channel} (${record.status})`);
 }
 
-export function getRecentPublications(
-  db: Database,
-  limit: number,
-): readonly PublicationRecord[] {
+export function getRecentPublications(db: Database, limit: number): readonly PublicationRecord[] {
   const rows = db
     .prepare(`SELECT * FROM publications ORDER BY published_at DESC LIMIT ?`)
     .all(limit) as ReadonlyArray<Record<string, unknown>>;

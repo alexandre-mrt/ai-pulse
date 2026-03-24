@@ -31,10 +31,7 @@ function getDomain(url: string): string {
   return new URL(url).hostname;
 }
 
-export async function fetchWithTimeout(
-  url: string,
-  options: FetchOptions = {},
-): Promise<Response> {
+export async function fetchWithTimeout(url: string, options: FetchOptions = {}): Promise<Response> {
   const { timeout = 15_000, rateLimit, ...fetchOptions } = options;
   const domain = getDomain(url);
 

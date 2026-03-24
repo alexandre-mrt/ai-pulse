@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { type Config } from "../config/index.ts";
+import type { Config } from "../config/index.ts";
 import type { ArticleDigest, GeneratedContent } from "../types/index.ts";
 import { createLogger } from "../utils/index.ts";
 import { generateNewsletter } from "./newsletter.ts";
@@ -65,4 +65,3 @@ export async function generateAllContent(
 
   return result;
 }
-

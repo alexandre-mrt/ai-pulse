@@ -34,7 +34,7 @@ export async function withRetry<T>(
         break;
       }
 
-      const delay = config.delayMs * Math.pow(config.backoffMultiplier ?? 2, attempt - 1);
+      const delay = config.delayMs * (config.backoffMultiplier ?? 2) ** (attempt - 1);
       logger.warn(`${label}: attempt ${attempt} failed, retrying in ${delay}ms`, { error });
       config.onRetry?.(error, attempt);
       await new Promise((resolve) => setTimeout(resolve, delay));

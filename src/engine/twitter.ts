@@ -1,10 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import type { Config } from "../config/index.ts";
 import type { ArticleDigest, Tweet, TwitterThread } from "../types/index.ts";
-import { createLogger } from "../utils/index.ts";
-import { withRetry } from "../utils/index.ts";
-import { TWITTER_SYSTEM_PROMPT, buildTwitterPrompt } from "./prompts.ts";
+import { createLogger, withRetry } from "../utils/index.ts";
+import { buildTwitterPrompt, TWITTER_SYSTEM_PROMPT } from "./prompts.ts";
 
 const logger = createLogger("twitter");
 
@@ -54,7 +53,10 @@ export async function generateThread(
   const { twitterHandle, newsletterName } = config.content;
   const prompt = buildTwitterPrompt(digest, twitterHandle, newsletterName);
 
-  logger.info("Generating Twitter thread", { date: digest.date, stories: digest.topStories.length });
+  logger.info("Generating Twitter thread", {
+    date: digest.date,
+    stories: digest.topStories.length,
+  });
 
   const output = await withRetry(
     () =>

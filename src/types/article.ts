@@ -1,10 +1,4 @@
-export type SourceName =
-  | "hackernews"
-  | "reddit"
-  | "techcrunch"
-  | "arxiv"
-  | "producthunt"
-  | "rss";
+export type SourceName = "hackernews" | "reddit" | "techcrunch" | "arxiv" | "producthunt" | "rss";
 
 export interface RawArticle {
   readonly sourceId: string;

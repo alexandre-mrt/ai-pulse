@@ -1,10 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import type { Config } from "../config/index.ts";
 import type { ArticleDigest, NewsletterContent } from "../types/index.ts";
-import { createLogger } from "../utils/index.ts";
-import { withRetry } from "../utils/index.ts";
-import { NEWSLETTER_SYSTEM_PROMPT, buildNewsletterPrompt } from "./prompts.ts";
+import { createLogger, withRetry } from "../utils/index.ts";
+import { buildNewsletterPrompt, NEWSLETTER_SYSTEM_PROMPT } from "./prompts.ts";
 
 const logger = createLogger("newsletter");
 

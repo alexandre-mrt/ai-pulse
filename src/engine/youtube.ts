@@ -1,10 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import type { Config } from "../config/index.ts";
 import type { ArticleDigest, ScriptSection, YouTubeScript } from "../types/index.ts";
-import { createLogger } from "../utils/index.ts";
-import { withRetry } from "../utils/index.ts";
-import { YOUTUBE_SYSTEM_PROMPT, buildYouTubePrompt } from "./prompts.ts";
+import { createLogger, withRetry } from "../utils/index.ts";
+import { buildYouTubePrompt, YOUTUBE_SYSTEM_PROMPT } from "./prompts.ts";
 
 const logger = createLogger("youtube");
 
@@ -64,7 +63,10 @@ export async function generateScript(
   const { youtubeChannelName, twitterHandle } = config.content;
   const prompt = buildYouTubePrompt(digest, youtubeChannelName, twitterHandle);
 
-  logger.info("Generating YouTube script", { date: digest.date, stories: digest.topStories.length });
+  logger.info("Generating YouTube script", {
+    date: digest.date,
+    stories: digest.topStories.length,
+  });
 
   const output = await withRetry(
     () =>

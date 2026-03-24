@@ -1,86 +1,76 @@
 # Long Run State — AI Pulse
 
 > This file is the ONLY memory between iterations. Everything the next iteration needs MUST be here.
-> Target size: 100-150 lines max. Compress aggressively.
 
 ## Meta
 
 - **Project**: AI Pulse
 - **Objective**: Automated AI/tech content pipeline → newsletter + Twitter + YouTube (daily)
 - **Started**: 2026-03-24
-- **Mode**: long-run (multi-day)
-- **Iteration**: 1
-- **Total duration**: 0h
-- **Human checkpoints**: 0
+- **Mode**: long-run (in-conversation fallback)
+- **Iteration**: 3
+- **Total duration**: ~30min
+- **Human checkpoints**: 1 (user corrected: skill was stopping too early)
 - **Spec**: NIGHT_SHIFT_ENRICHED_SPEC.md
 
 ---
 
-## Compressed History (iterations 1 to N-5)
+## Compressed History (iterations 1-2)
 
-(none yet — first run)
+- **Iter 1 (PLAN+ORCHESTRATE)**: Built foundation (types, config, utils, storage, biome), launched 3 parallel agents (sources, engine, dashboard). All merged successfully. Biome v2 migration required manual fix.
+- **Iter 2 (EXECUTE)**: Merged all agent work, fixed typecheck errors (2), fixed biome errors (4). All 35 TS files pass tsc + biome. Committed and pushed to GitHub.
 
 ---
 
-## Recent Recaps (iterations N-4 to N-1)
+## Recent Recaps
 
-(none yet — first run)
+### Iteration 3 — 2026-03-24 ~5min
+- **Type**: execute
+- **Did**: Updated long-run skill (added "Never Stop Early" section + Definition of Done), created GitHub repo, launched 2 test agents
+- **Orchestration**: 2 night-tester agents (worktree, background)
+- **Discovered**: Skill had no explicit continuation mechanism for in-conversation mode
+- **Failed**: nothing
+- **Lesson**: Always check Definition of Done before presenting results
 
 ---
 
 ## Current State
 
 ### Phase
-planning
+executing — tests
 
-### Tasks
-
-| ID | Task | Status | Depends on | Notes |
-|----|------|--------|------------|-------|
-| P1 | Foundation (setup, types, config, utils) | pending | — | Wave 3a |
-| P2 | Source aggregators (6 sources) | pending | P1 | Wave 3b |
-| P3 | Content engine (Claude API) | pending | P1 | Wave 3b |
-| P4 | Newsletter publisher (Beehiiv) | pending | P3 | Wave 4 |
-| P5 | Twitter publisher (X API v2) | pending | P3 | Wave 4 |
-| P6 | YouTube pipeline (TTS + video + upload) | pending | P3 | Wave 4 |
-| P7 | Scheduler (cron pipeline) | pending | P4,P5,P6 | Wave 5 |
-| P8 | Dashboard (Next.js) | pending | P7 | Wave 6 |
-| P9 | Testing + polish | pending | P8 | Wave 7 |
+### Definition of Done Checklist
+- [x] All code modules built and committed
+- [x] TypeScript typecheck passes (0 errors)
+- [x] Biome lint passes (0 errors)
+- [ ] Unit tests written for core modules (agents running)
+- [ ] All tests pass
+- [x] GitHub repo created and code pushed (alexandre-mrt/ai-pulse)
+- [ ] Code review agent run on full diff
+- [ ] LONG_RUN_STATE.md updated with final status
+- [x] CLAUDE.md at project root is accurate
+- [ ] `<promise>NIGHT_SHIFT_COMPLETE</promise>` emitted
 
 ### Blockers
 (none)
 
 ### Next Actions
-1. PLAN iteration: research APIs (Context7), define interfaces, create foundation
+1. Wait for test agents → merge → run `bun test`
+2. Launch code-reviewer agent on full diff
+3. Fix any issues found
+4. Final validation → `<promise>`
 
 ---
 
 ## Strategic Context
 
-### Architecture Decisions (cumulative)
+### Architecture Decisions
 - Monorepo: pipeline + dashboard in same repo
-- SQLite (via bun:sqlite) for local data storage (articles, publications)
-- Structured logging with levels (debug/info/warn/error)
-- Each source/publisher is a standalone module with shared interface
+- SQLite (bun:sqlite) for local storage
+- No SDK for Beehiiv/Twitter (direct REST)
+- Biome v2 (not v1) — `assist` not `assists`, no `ignore` in files
+- Dashboard uses Bun.serve() with HTML imports (not Next.js)
 
-### Open Questions
-(none yet)
-
-### Playbook Lessons Applied This Run
-- multi-file-feature: shared types in dedicated wave before implementation
-- api-integration: verify API docs, check for SDKs, plan error handling upfront
-
-### Direction Changes
-(none)
-
----
-
-## Async Communication (non-blocking)
-
-### Last checkpoint
-- **Iteration**: —
-- **Pending questions**: 0
-- **Answered questions**: 0
-
-### User corrections applied
-(none)
+### Playbook Lessons Applied
+- multi-file-feature: shared types in dedicated wave before implementation ✓
+- api-integration: verify API docs, check for SDKs ✓ (found no Beehiiv SDK)

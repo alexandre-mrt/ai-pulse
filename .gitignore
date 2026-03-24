@@ -43,3 +43,4 @@ NIGHT_SHIFT_*.md
 # Dashboard
 dashboard/.next/
 dashboard/node_modules/
+.claude/worktrees/

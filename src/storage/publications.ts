@@ -42,7 +42,9 @@ export function updatePipelineRun(
   if (sets.length === 0) return;
 
   values.push(id);
-  db.prepare(`UPDATE pipeline_runs SET ${sets.join(", ")} WHERE id = ?`).run(...values);
+  db.prepare(`UPDATE pipeline_runs SET ${sets.join(", ")} WHERE id = ?`).run(
+    ...(values as [string, ...string[]]),
+  );
 }
 
 export function getLatestPipelineRun(db: Database): PipelineRun | null {

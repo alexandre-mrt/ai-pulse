@@ -85,10 +85,7 @@ export async function runPipeline(config?: Config): Promise<void> {
     createStage("publishing_youtube"),
   ];
 
-  const aggregatorResult = await runStage(stages, "aggregation", async () => {
-    const aggregator = createAggregator(cfg);
-    return aggregator.aggregate();
-  });
+  const aggregatorResult = await runStage(stages, "aggregation", () => createAggregator(cfg));
   stages = aggregatorResult.stages;
 
   if (!aggregatorResult.result) {

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { Config } from "../config/index.ts";
 import { loadConfig } from "../config/index.ts";
 import { generateAllContent } from "../engine/index.ts";
@@ -12,7 +13,7 @@ const logger = createLogger("pipeline");
 
 function generateRunId(): string {
   const date = new Date().toISOString().split("T")[0];
-  const random = Math.random().toString(36).substring(2, 8);
+  const random = crypto.randomBytes(4).toString("hex");
   return `run_${date}_${random}`;
 }
 

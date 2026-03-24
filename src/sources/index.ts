@@ -1,4 +1,6 @@
+import type { Database } from "bun:sqlite";
 import type { Config } from "../config/index.ts";
+import { getDatabase } from "../storage/database.ts";
 import type { ArticleDigest, RawArticle, ScoredArticle, SourceName } from "../types/article.ts";
 import type { SourceProvider } from "../types/pipeline.ts";
 import { createLogger } from "../utils/index.ts";
@@ -77,6 +79,28 @@ function deduplicateByUrl(articles: readonly RawArticle[]): readonly RawArticle[
   });
 }
 
+function getRecentlyPublishedUrls(db: Database, daysBack: number): Set<string> {
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT url FROM articles WHERE published_at >= datetime('now', '-${daysBack} days')`,
+    )
+    .all() as ReadonlyArray<{ url: string }>;
+  return new Set(rows.map((r) => r.url));
+}
+
+function deduplicateAcrossDays(
+  articles: readonly RawArticle[],
+  recentUrls: Set<string>,
+): readonly RawArticle[] {
+  const before = articles.length;
+  const filtered = articles.filter((a) => !recentUrls.has(a.url));
+  const removed = before - filtered.length;
+  if (removed > 0) {
+    logger.info(`Cross-day dedup: removed ${removed} articles already published recently`);
+  }
+  return filtered;
+}
+
 function buildSourceStats(
   articles: readonly ScoredArticle[],
 ): Readonly<Record<SourceName, number>> {
@@ -149,7 +173,17 @@ export async function createAggregator(config: Config): Promise<ArticleDigest> {
 
   logger.info(`Total raw articles before dedup: ${allArticles.length}`);
 
-  const deduplicated = deduplicateByUrl(allArticles);
+  const withinRunDeduped = deduplicateByUrl(allArticles);
+
+  let deduplicated: readonly RawArticle[];
+  try {
+    const db = getDatabase(config.storage.dbPath);
+    const recentUrls = getRecentlyPublishedUrls(db, 7);
+    deduplicated = deduplicateAcrossDays(withinRunDeduped, recentUrls);
+  } catch {
+    logger.warn("Cross-day dedup skipped (database not available)");
+    deduplicated = withinRunDeduped;
+  }
 
   logger.info(`After deduplication: ${deduplicated.length} articles`);
 

@@ -1,3 +1,5 @@
+import { rm } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { Config } from "../../config/index.ts";
 import type { YouTubeScript } from "../../types/index.ts";
 import { createLogger } from "../../utils/index.ts";
@@ -14,6 +16,16 @@ interface YouTubePublishResult {
   readonly duration: number;
 }
 
+async function cleanupTempFiles(videoPath: string): Promise<void> {
+  try {
+    const dir = dirname(videoPath);
+    await rm(dir, { recursive: true, force: true });
+    logger.info(`Cleaned up temp files: ${dir}`);
+  } catch (error) {
+    logger.warn("Failed to cleanup temp files", { error });
+  }
+}
+
 export async function publishYouTubeVideo(
   config: Config,
   script: YouTubeScript,
@@ -28,6 +40,8 @@ export async function publishYouTubeVideo(
 
   const uploadResult = await uploadVideo(config, script, videoOutput.videoPath);
   logger.info(`YouTube video published: ${uploadResult.url}`);
+
+  await cleanupTempFiles(videoOutput.videoPath);
 
   return {
     videoId: uploadResult.videoId,

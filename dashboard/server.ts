@@ -12,14 +12,20 @@ import type {
 import index from "./index.html";
 
 const DASHBOARD_PORT = Number(process.env["DASHBOARD_PORT"] ?? 3001);
-const DASHBOARD_SECRET = process.env["DASHBOARD_SECRET"] ?? "";
+const DASHBOARD_HOST = process.env["DASHBOARD_HOST"] ?? "127.0.0.1";
+const DASHBOARD_SECRET = process.env["DASHBOARD_SECRET"];
 const PIPELINE_SCRIPT = "../src/scheduler/pipeline.ts";
+
+if (!DASHBOARD_SECRET) {
+  throw new Error(
+    "DASHBOARD_SECRET must be set. Dashboard cannot start without authentication.",
+  );
+}
 
 let lastTriggerTime = 0;
 const TRIGGER_COOLDOWN_MS = 300_000;
 
 function isAuthorized(req: Request): boolean {
-  if (!DASHBOARD_SECRET) return true;
   const authHeader = req.headers.get("Authorization");
   return authHeader === `Bearer ${DASHBOARD_SECRET}`;
 }
@@ -59,119 +65,115 @@ function mapPublication(row: PublicationRow): PublicationDto {
 function jsonResponse<T>(data: ApiResponse<T>, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": `http://${DASHBOARD_HOST}:${DASHBOARD_PORT}`,
+      "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    },
   });
 }
 
+function withAuth<T>(
+  req: Request,
+  handler: () => Response,
+): Response {
+  if (!isAuthorized(req)) {
+    return jsonResponse<T>({ success: false, error: "Unauthorized" } as ApiResponse<T>, 401);
+  }
+  return handler();
+}
+
+function safeDbQuery<T>(label: string, fn: () => ApiResponse<T>): Response {
+  try {
+    return jsonResponse(fn());
+  } catch (err) {
+    console.error(`Dashboard ${label} error:`, err);
+    return jsonResponse<T>({ success: false, error: "Internal server error" } as ApiResponse<T>, 500);
+  }
+}
+
 Bun.serve({
+  hostname: DASHBOARD_HOST,
   port: DASHBOARD_PORT,
   routes: {
     "/": index,
 
     "/api/status": {
-      GET(): Response {
-        try {
-          const db = openDashboardDb();
-          const row = db
-            .prepare("SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT 1")
-            .get() as PipelineRunRow | null;
-          db.close();
-          const response: ApiResponse<StatusResponse> = {
-            success: true,
-            data: { latestRun: row ? mapPipelineRun(row) : null },
-          };
-          return jsonResponse(response);
-        } catch (err) {
-          const response: ApiResponse<StatusResponse> = {
-            success: false,
-            error: err instanceof Error ? err.message : "Failed to fetch status",
-          };
-          return jsonResponse(response, 500);
-        }
+      GET(req: Request): Response {
+        return withAuth<StatusResponse>(req, () =>
+          safeDbQuery<StatusResponse>("status", () => {
+            const db = openDashboardDb();
+            const row = db
+              .prepare("SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT 1")
+              .get() as PipelineRunRow | null;
+            db.close();
+            return { success: true, data: { latestRun: row ? mapPipelineRun(row) : null } };
+          }),
+        );
       },
     },
 
     "/api/publications": {
-      GET(): Response {
-        try {
-          const db = openDashboardDb();
-          const rows = db
-            .prepare("SELECT * FROM publications ORDER BY published_at DESC LIMIT 30")
-            .all() as readonly PublicationRow[];
-          db.close();
-          const response: ApiResponse<readonly PublicationDto[]> = {
-            success: true,
-            data: rows.map(mapPublication),
-          };
-          return jsonResponse(response);
-        } catch (err) {
-          const response: ApiResponse<readonly PublicationDto[]> = {
-            success: false,
-            error: err instanceof Error ? err.message : "Failed to fetch publications",
-          };
-          return jsonResponse(response, 500);
-        }
+      GET(req: Request): Response {
+        return withAuth<readonly PublicationDto[]>(req, () =>
+          safeDbQuery<readonly PublicationDto[]>("publications", () => {
+            const db = openDashboardDb();
+            const rows = db
+              .prepare("SELECT * FROM publications ORDER BY published_at DESC LIMIT 30")
+              .all() as readonly PublicationRow[];
+            db.close();
+            return { success: true, data: rows.map(mapPublication) };
+          }),
+        );
       },
     },
 
     "/api/pipeline-runs": {
-      GET(): Response {
-        try {
-          const db = openDashboardDb();
-          const rows = db
-            .prepare("SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT 20")
-            .all() as readonly PipelineRunRow[];
-          db.close();
-          const response: ApiResponse<readonly PipelineRunDto[]> = {
-            success: true,
-            data: rows.map(mapPipelineRun),
-          };
-          return jsonResponse(response);
-        } catch (err) {
-          const response: ApiResponse<readonly PipelineRunDto[]> = {
-            success: false,
-            error: err instanceof Error ? err.message : "Failed to fetch pipeline runs",
-          };
-          return jsonResponse(response, 500);
-        }
+      GET(req: Request): Response {
+        return withAuth<readonly PipelineRunDto[]>(req, () =>
+          safeDbQuery<readonly PipelineRunDto[]>("pipeline-runs", () => {
+            const db = openDashboardDb();
+            const rows = db
+              .prepare("SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT 20")
+              .all() as readonly PipelineRunRow[];
+            db.close();
+            return { success: true, data: rows.map(mapPipelineRun) };
+          }),
+        );
       },
     },
 
     "/api/trigger": {
       POST(req: Request): Response {
-        if (!isAuthorized(req)) {
-          return jsonResponse<TriggerResponse>(
-            { success: false, error: "Unauthorized" },
-            401,
-          );
-        }
+        return withAuth<TriggerResponse>(req, () => {
+          const now = Date.now();
+          if (now - lastTriggerTime < TRIGGER_COOLDOWN_MS) {
+            const waitSec = Math.ceil((TRIGGER_COOLDOWN_MS - (now - lastTriggerTime)) / 1000);
+            return jsonResponse<TriggerResponse>(
+              { success: false, error: `Rate limited. Try again in ${waitSec}s` },
+              429,
+            );
+          }
 
-        const now = Date.now();
-        if (now - lastTriggerTime < TRIGGER_COOLDOWN_MS) {
-          const waitSec = Math.ceil((TRIGGER_COOLDOWN_MS - (now - lastTriggerTime)) / 1000);
-          return jsonResponse<TriggerResponse>(
-            { success: false, error: `Rate limited. Try again in ${waitSec}s` },
-            429,
-          );
-        }
-
-        try {
-          lastTriggerTime = now;
-          Bun.spawn(["bun", "run", PIPELINE_SCRIPT], {
-            cwd: "..",
-            stdout: "ignore",
-            stderr: "ignore",
-          });
-          return jsonResponse<TriggerResponse>({
-            success: true,
-            data: { triggered: true, message: "Pipeline triggered successfully" },
-          });
-        } catch (err) {
-          return jsonResponse<TriggerResponse>({
-            success: false,
-            error: err instanceof Error ? err.message : "Failed to trigger pipeline",
-          }, 500);
-        }
+          try {
+            lastTriggerTime = now;
+            Bun.spawn(["bun", "run", PIPELINE_SCRIPT], {
+              cwd: "..",
+              stdout: "ignore",
+              stderr: "ignore",
+            });
+            return jsonResponse<TriggerResponse>({
+              success: true,
+              data: { triggered: true, message: "Pipeline triggered successfully" },
+            });
+          } catch (err) {
+            console.error("Dashboard trigger error:", err);
+            return jsonResponse<TriggerResponse>(
+              { success: false, error: "Failed to trigger pipeline" },
+              500,
+            );
+          }
+        });
       },
     },
   },
@@ -182,4 +184,4 @@ Bun.serve({
   },
 });
 
-console.log(`AI Pulse Dashboard running at http://localhost:${DASHBOARD_PORT}`);
+console.log(`AI Pulse Dashboard running at http://${DASHBOARD_HOST}:${DASHBOARD_PORT}`);

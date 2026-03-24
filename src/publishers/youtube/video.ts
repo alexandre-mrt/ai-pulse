@@ -89,16 +89,23 @@ function escapeFFmpegText(text: string): string {
     .replace(/:/g, "\\:")
     .replace(/\[/g, "\\[")
     .replace(/\]/g, "\\]")
+    .replace(/\{/g, "\\{")
+    .replace(/\}/g, "\\}")
     .replace(/%/g, "%%")
     .replace(/;/g, "\\;")
     .replace(/\n/g, " ");
 }
+
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function assembleVideo(
   script: YouTubeScript,
   segments: readonly AudioSegment[],
 ): Promise<VideoOutput> {
   const date = script.digest.date;
+  if (!DATE_REGEX.test(date)) {
+    throw new Error(`Invalid date format for video output: ${date}`);
+  }
   const outputDir = join(await ensureOutputDir(), date);
   await mkdir(outputDir, { recursive: true });
 

@@ -95,6 +95,7 @@ function escapeFFmpegText(text: string): string {
     .replace(/;/g, "\\;")
     .replace(/\$/g, "\\$")
     .replace(/`/g, "\\`")
+    .replace(/=/g, "\\=")
     .replace(/\n/g, " ");
 }
 

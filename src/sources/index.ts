@@ -82,9 +82,9 @@ function deduplicateByUrl(articles: readonly RawArticle[]): readonly RawArticle[
 function getRecentlyPublishedUrls(db: Database, daysBack: number): Set<string> {
   const rows = db
     .prepare(
-      `SELECT DISTINCT url FROM articles WHERE published_at >= datetime('now', '-${daysBack} days')`,
+      "SELECT DISTINCT url FROM articles WHERE published_at >= datetime('now', '-' || ? || ' days')",
     )
-    .all() as ReadonlyArray<{ url: string }>;
+    .all(daysBack) as ReadonlyArray<{ url: string }>;
   return new Set(rows.map((r) => r.url));
 }
 

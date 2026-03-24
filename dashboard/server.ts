@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { openDashboardDb } from "./lib/db.ts";
 import type {
   ApiResponse,
@@ -27,7 +28,10 @@ const TRIGGER_COOLDOWN_MS = 300_000;
 
 function isAuthorized(req: Request): boolean {
   const authHeader = req.headers.get("Authorization");
-  return authHeader === `Bearer ${DASHBOARD_SECRET}`;
+  if (!authHeader) return false;
+  const token = authHeader.replace("Bearer ", "");
+  if (token.length !== DASHBOARD_SECRET.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(DASHBOARD_SECRET));
 }
 
 function mapPipelineRun(row: PipelineRunRow): PipelineRunDto {

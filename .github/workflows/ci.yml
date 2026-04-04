@@ -1,0 +1,13 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  ci:
+    uses: alexandre-mrt/.github/.github/workflows/ts-bun-ci.yml@main
+    with:
+      has-tests: false

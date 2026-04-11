@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.80.0",
+    "@anthropic-ai/sdk": "^0.88.0",
     "@elevenlabs/elevenlabs-js": "^2.40.0",
     "fast-xml-parser": "^5.5.9"
   },
